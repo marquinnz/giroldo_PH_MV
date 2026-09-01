@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Jogo da Memória — Escudos Brasil + Europa (Fullscreen)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Reset e fullscreen */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #1a252f 65%, #233142 100%);
+            color: #ecf0f1;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* Sem scroll na página */
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+        }
+
+        /* Container ocupa 100% da altura/width com flex column */
+        .fullscreen-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            min-width: 320px;
+            max-width: 1920px;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        /* Título */
+        .titulo-header {
+            text-align: center;
+            padding: 14px 0 6px 0;
+            font-size: 2.2rem;
+            letter-spacing: 2px;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            font-weight: 700;
+            background: linear-gradient(transparent 80%, #2c3e50 100%);
+            user-select: none;
+        }
+
+        /* Painel de controles fixo */
+        .painel-controles {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 20px 8px 20px;
+            background: rgba(34,49,64,0.94);
+            border-bottom: 2px solid #34495e;
+            z-index: 10;
+        }
+
+        .regiao-btn {
+            padding: 6px 16px;
+            border-radius: 8px;
+            border: 2px solid #3498db;
+            background: #2c3e50;
+            color: #3498db;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.18s;
+            font-size: 1rem;
+        }
+        .regiao-btn.ativo {
+            background: #3498db;
+            color: #fff;
+            border: 2px solid #2980b9;
+            font-weight: bold;
+        }
+        .regiao-btn:hover:not(.ativo) {
+            background: #3b4a5a;
+            color: #2980b9;
+            border-color: #2980b9;
+        }
+
+        select {
+            padding: 6px 14px;
+            border-radius: 7px;
+            border: 1px solid #7f8c8d;
+            background: #2c3e50;
+            color: #ecf0f1;
+            font-size: 1rem;
+            min-width: 110px;
+            cursor: pointer;
+        }
+
+        .pontuacao {
+            background: #2c3e50;
+            padding: 6px 18px;
+            border-radius: 8px;
+            color: #f1c40f;
+            font-weight: bold;
+            font-size: 1.1rem;
+            min-width: 100px;
+            text-align: right;
+        }
+
+        .btn-reiniciar {
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+            color: #fff;
+            border: none;
+            padding: 7px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: 6px;
+            transition: background 0.2s, transform 0.15s;
+            font-size: 1rem;
+        }
+        .btn-reiniciar:hover {
+            background: linear-gradient(90deg, #c0392b, #e74c3c);
+            transform: scale(1.04);
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           TABULEIRO — Ocupa TODO o espaço restante da tela
+           ═══════════════════════════════════════════════════════ */
+        .tabuleiro-wrapper {
+            flex: 1 0 auto; /* Ocupa todo espaço restante */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100vw;
+            min-height: 0;
+            padding: 14px 0 10px 0;
+            box-sizing: border-box;
+        }
+
+        .tabuleiro {
+            /* A grid será dimensionada pelo JS — aqui só estilos base */
+            display: grid;
+            gap: 12px;
+            width: 100%;
+            height: 100%;
+            justify-content: center;
+            align-content: center;
+            /* Sem scroll aqui também */
+            overflow: hidden;
+        }
+
+        .carta {
+            background: #34495e;
+            border: 2.5px solid #233142;
+            border-radius: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #e74c3c;
+            box-shadow: 0 4px 7px rgba(0,0,0,0.14);
+            transition: transform 0.16s, background 0.16s;
+            overflow: hidden;
+            /* Tamanho será definido pelo JS */
+        }
+
+        .carta:hover {
+            transform: scale(1.04);
+            background: #3e566f;
+        }
+        .carta.revelada {
+            background: #fff;
+            border-color: #bdc3c7;
+            cursor: default;
+        }
+        .carta img {
+            width: 92%;
+            height: 92%;
+            object-fit: contain;
+            display: block;
+        }
+        .carta.acertou {
+            background: #2ecc71;
+            border-color: #27ae60;
+            animation: acerto 0.36s;
+        }
+        @keyframes acerto {
+            0% { transform: scale(0.88); }
+            70% { transform: scale(1.06); }
+            100% { transform: scale(1); }
+        }
+        .carta.erro {
+            animation: erro 0.34s;
+            background: #e74c3c;
+        }
+        @keyframes erro {
+            0%,100% { transform: scale(1); }
+            30% { transform: scale(1.07); }
+            60% { transform: scale(1.03); }
+        }
+
+        /* Mensagem de fim — fullscreen overlay */
+        .mensagem-fim {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(34,49,64,0.92);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20000;
+            animation: fadein 0.38s;
+        }
+        @keyframes fadein {
+            from { opacity: 0; transform: translateY(-30px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .mensagem-fim .titulo {
+            font-size: 2.4rem;
+            color: #2ecc71;
+            font-weight: bold;
+            margin-bottom: 14px;
+        }
+        .mensagem-fim .detalhes {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+        }
+        .mensagem-fim .btn-jogar-novamente {
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            color: #fff;
+            border: none;
+            padding: 12px 36px;
+            border-radius: 10px;
+            font-size: 1.15rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: background 0.2s, transform 0.15s;
+        }
+        .mensagem-fim .btn-jogar-novamente:hover {
+            background: linear-gradient(90deg, #2980b9, #3498db);
+            transform: scale(1.04);
+        }
+
+        /* Responsividade extra para telas muito estreitas */
+        @media (max-width: 500px) {
+            .titulo-header { font-size: 1.3rem; padding: 10px 0 4px 0; }
+            .painel-controles { padding: 6px 6px 4px 6px; gap: 6px; }
+            .tabuleiro-wrapper { padding: 6px 0 4px 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="fullscreen-container">
+        <div class="titulo-header">🏆 Jogo da Memória — Escudos de Times</div>
+        
+        <div class="painel-controles">
+            <span style="color:#bdc3c7;font-size:1rem;">Região:</span>
+            <button class="regiao-btn ativo" data-regiao="brasil">🇧🇷 Brasil</button>
+            <button class="regiao-btn" data-regiao="europa">🇪🇺 Europa</button>
+            <button class="regiao-btn" data-regiao="misto">🔀 Misto</button>
+            
+            <span style="color:#bdc3c7;font-size:1rem;">Nível:</span>
+            <select id="nivel">
+                <option value="1">1 — 5 times</option>
+                <option value="2" selected>2 — 10 times</option>
+                <option value="3">3 — 20 times</option>
+                <option value="4">4 — 40 times</option>
+            </select>
+            
+            <span class="pontuacao">Pontos: <span id="pontos-val">0</span></span>
+            
+            <button class="btn-reiniciar" id="btn-reiniciar">↻ Reiniciar</button>
+        </div>
+        
+        <div class="tabuleiro-wrapper">
+            <div class="tabuleiro" id="tabuleiro"></div>
+        </div>
+    </div>
+    
+    <!-- Mensagem de fim (overlay fullscreen) -->
+    <div id="mensagem-fim" class="mensagem-fim" style="display:none;">
+        <div class="titulo">🎉 Parabéns!</div>
+        <div class="detalhes">
+            Você completou o jogo!<br>
+            Pontuação: <b id="fim-pontos-val">0</b> pontos
+        </div>
+        <button class="btn-jogar-novamente" id="btn-jogar-novamente">Jogar novamente</button>
+    </div>
+
+<script>
+// ═════════════════════════════════════════════════════════════════════
+// LISTAS DE TIMES (20 Brasil + 20 Europa — completas e válidas)
+// ═════════════════════════════════════════════════════════════════════
+const TIMES_BRASIL = [
+    { id: "flamengo", nome: "Flamengo", link: "https://cdn.soccerwiki.org/images/logos/clubs/294.png" },
+    { id: "palmeiras", nome: "Palmeiras", link: "https://cdn.soccerwiki.org/images/logos/clubs/300.png" },
+    { id: "corinthians", nome: "Corinthians", link: "https://cdn.soccerwiki.org/images/logos/clubs/290.png" },
+    { id: "sao-paulo", nome: "São Paulo", link: "https://cdn.soccerwiki.org/images/logos/clubs/306.png" },
+    { id: "gremio", nome: "Grêmio", link: "https://cdn.soccerwiki.org/images/logos/clubs/602.png" },
+    { id: "internacional", nome: "Internacional", link: "https://cdn.soccerwiki.org/images/logos/clubs/298.png" },
+    { id: "cruzeiro", nome: "Cruzeiro", link: "https://cdn.soccerwiki.org/images/logos/clubs/292.png" },
+    { id: "atletico-mg", nome: "Atlético-MG", link: "https://cdn.soccerwiki.org/images/logos/clubs/286.png" },
+    { id: "vasco", nome: "Vasco", link: "https://cdn.soccerwiki.org/images/logos/clubs/307.png" },
+    { id: "santos", nome: "Santos", link: "https://cdn.soccerwiki.org/images/logos/clubs/304.png" },
+    { id: "fluminense", nome: "Fluminense", link: "https://cdn.soccerwiki.org/images/logos/clubs/295.png" },
+    { id: "botafogo", nome: "Botafogo", link: "https://cdn.soccerwiki.org/images/logos/clubs/288.png" },
+    { id: "athletico-pr", nome: "Athletico-PR", link: "https://cdn.soccerwiki.org/images/logos/clubs/287.png" },
+    { id: "bahia", nome: "Bahia", link: "https://cdn.soccerwiki.org/images/logos/clubs/1473.png" },
+    { id: "coritiba", nome: "Coritiba", link: "https://cdn.soccerwiki.org/images/logos/clubs/291.png" },
+    { id: "goias", nome: "Goiás", link: "https://cdn.soccerwiki.org/images/logos/clubs/297.png" },
+    { id: "ceara", nome: "Ceará", link: "https://cdn.soccerwiki.org/images/logos/clubs/1458.png" },
+    { id: "fortaleza", nome: "Fortaleza", link: "https://cdn.soccerwiki.org/images/logos/clubs/296.png" },
+    { id: "sport", nome: "Sport Recife", link: "https://cdn.soccerwiki.org/images/logos/clubs/923.png" },
+    { id: "ponte-preta", nome: "Ponte Preta", link: "https://cdn.soccerwiki.org/images/logos/clubs/303.png" }
+];
+
+const TIMES_EUROPA = [
+    { id: "manchester-united", nome: "Manchester United", link: "https://thumb.wikimedia.org/wikipedia/pt/thumb/b/b6/Manchester_United_FC_logo.png/250px-Manchester_United_FC_logo.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "liverpool", nome: "Liverpool", link: "https://thumb.wikimedia.org/wikipedia/pt/thumb/0/0c/Liverpool_FC.svg/250px-Liverpool_FC.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "chelsea", nome: "Chelsea", link: "https://thumb.wikimedia.org/wikipedia/pt/thumb/c/cc/Chelsea_FC.svg/250px-Chelsea_FC.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "arsenal", nome: "Arsenal", link: "https://thumb.wikimedia.org/wikipedia/pt/thumb/5/53/Arsenal_FC.svg/250px-Arsenal_FC.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "manchester-city", nome: "Manchester City", link: "https://thumb.wikimedia.org/wikipedia/pt/thumb/0/02/Manchester_City_Football_Club.png/250px-Manchester_City_Football_Club.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "real-madrid", nome: "Real Madrid", link: "https://upload.wikimedia.org/wikipedia/pt/thumb/9/98/Real_Madrid.png/250px-Real_Madrid.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "barcelona", nome: "Barcelona", link: "https://thumb.wikimedia.org/wikipedia/pt/thumb/4/43/FCBarcelona.svg/330px-FCBarcelona.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "atletico-madrid", nome: "Atlético Madrid", link: "https://upload.wikimedia.org/wikipedia/pt/thumb/c/c1/Atletico_Madrid_logo.svg/250px-Atletico_Madrid_logo.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "juventus", nome: "Juventus", link: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ed/Juventus_FC_-_logo_black_%28Italy%2C_2020%29.svg/250px-Juventus_FC_-_logo_black_%28Italy%2C_2020%29.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "milan", nome: "AC Milan", link: "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Logo_of_AC_Milan.svg/330px-Logo_of_AC_Milan.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "inter-milao", nome: "Inter de Milão", link: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/FC_Internazionale_Milano_2021.svg/330px-FC_Internazionale_Milano_2021.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "napoli", nome: "Napoli", link: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/SSC_Napoli_2025_%28white_and_azure%29.svg/250px-SSC_Napoli_2025_%28white_and_azure%29.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "bayern", nome: "Bayern de Munique", link: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/FC_Bayern_M%C3%BCnchen_logo_%282024%29.svg/330px-FC_Bayern_M%C3%BCnchen_logo_%282024%29.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "dortmund", nome: "Borussia Dortmund", link: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Borussia_Dortmund_logo.svg/250px-Borussia_Dortmund_logo.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "psg", nome: "Paris Saint-Germain", link: "https://thumb.wikimedia.org/wikipedia/pt/thumb/c/c2/Paris_Saint-Germain_F.C.svg/250px-Paris_Saint-Germain_F.C.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "porto", nome: "FC Porto", link: "https://thumb.wikimedia.org/wikipedia/pt/thumb/c/c5/F.C._Porto_logo.png/250px-F.C._Porto_logo.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "benfica", nome: "Benfica", link: "https://thumb.wikimedia.org/wikipedia/pt/thumb/d/de/Sport_Lisboa_e_Benfica.svg/330px-Sport_Lisboa_e_Benfica.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "sporting", nome: "Sporting CP", link: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Sporting_Clube_de_Portugal_2026.svg/250px-Sporting_Clube_de_Portugal_2026.svg.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "ajax", nome: "Ajax", link: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Logo_AFC_Ajax_%281928-1991%2C_2025-%29.png/250px-Logo_AFC_Ajax_%281928-1991%2C_2025-%29.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" },
+    { id: "Leipzin", nome: "RB Leipzin", link: "https://upload.wikimedia.org/wikipedia/pt/thumb/6/65/RB_Leipzig_2020_Logo.png/500px-RB_Leipzig_2020_Logo.png?utm_source=pt.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" }
+];
+
+// ═════════════════════════════════════════════════════════════════════
+// CONFIGURAÇÃO DOS NÍVEIS
+// ═════════════════════════════════════════════════════════════════════
+const NIVEIS = {
+    1: { times: 5,  cartas: 10 },   // ~2-3 colunas
+    2: { times: 10, cartas: 20 },   // ~4-5 colunas
+    3: { times: 20, cartas: 40 },   // ~6-7 colunas
+    4: { times: 40, cartas: 80 }    // ~8-10 colunas
+};
+
+// ═════════════════════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ═════════════════════════════════════════════════════════════════════
+const estado = {
+    regiao: "brasil",
+    nivel: 2,
+    cartasData: [],
+    selecionadas: [],
+    bloqueado: false,
+    paresEncontrados: 0,
+    pontuacao: 0,
+    totalPares: 0,
+    timer: null,
+    tempoInicio: Date.now(),
+    tempoSeg: 0
+};
+
+// ═════════════════════════════════════════════════════════════════════
+// ELEMENTOS DO DOM
+// ═════════════════════════════════════════════════════════════════════
+const tabuleiro = document.getElementById('tabuleiro');
+const pontosVal = document.getElementById('pontos-val');
+const nivelSelect = document.getElementById('nivel');
+const btnReiniciar = document.getElementById('btn-reiniciar');
+const regiaoBtns = document.querySelectorAll('.regiao-btn');
+const mensagemFim = document.getElementById('mensagem-fim');
+
+// ═════════════════════════════════════════════════════════════════════
+// FUNÇÕES PRINCIPAIS — com cálculo dinâmico de layout
+// ═════════════════════════════════════════════════════════════════════
+function iniciarJogo() {
+    if (estado.timer) clearInterval(estado.timer);
+
+    // Selecionar times conforme região/nível
+    const config = NIVEIS[estado.nivel];
+    let baseLista = [];
+    if (estado.regiao === "brasil") {
+        baseLista = [...TIMES_BRASIL];
+    } else if (estado.regiao === "europa") {
+        baseLista = [...TIMES_EUROPA];
+    } else { // misto
+        const metade = Math.floor(config.times / 2);
+        const br = embaralhar(TIMES_BRASIL).slice(0, metade);
+        const eu = embaralhar(TIMES_EUROPA).slice(0, config.times - metade);
+        baseLista = [...br, ...eu];
+    }
+    
+    const timesSelecionados = embaralhar(baseLista).slice(0, config.times);
+    estado.cartasData = embaralhar([...timesSelecionados, ...timesSelecionados]);
+    estado.totalPares = timesSelecionados.length;
+    estado.paresEncontrados = 0;
+    estado.pontuacao = 0;
+    estado.selecionadas = [];
+    estado.bloqueado = false;
+    estado.tempoSeg = 0;
+    estado.tempoInicio = Date.now();
+    
+    atualizarPontuacao();
+    configurarLayout();
+    renderizarTabuleiro();
+    iniciarTimer();
+    mensagemFim.style.display = "none";
+}
+
+function configurarLayout() {
+    /*
+     * O objetivo: preencher a área do tabuleiro com cartas quadradas
+     * que NÃO ultrapassem a altura/width disponíveis, SEM scroll.
+     * 
+     * 1. Descobrir espaço disponível (viewport - controles - título - margens)
+     * 2. Calcular número ideal de colunas (entre 2 e 10, conforme nível)
+     * 3. Calcular tamanho máximo da carta = min(largura/colunas, altura/linhas)
+     */
+    const vh = window.innerHeight / 100;
+    const vw = window.innerWidth / 100;
+    
+    // Altura ocupada pelo header + controles (estimativa em vh)
+    const alturaFixa = 20; // ~8vh título + 6vh controles (ajustável)
+    const alturaDisponivel = vh * (100 - alturaFixa) * 0.98; // 2% margem
+    
+    // Largura disponível
+    const larguraDisponivel = Math.min(window.innerWidth, 1920) * 0.97;
+    
+    // Número de colunas ideal (ajustado ao nível e à largura da tela)
+    const config = NIVEIS[estado.nivel];
+    let colunas;
+    if (config.times <= 10) {
+        colunas = Math.min(3, Math.floor(larguraDisponivel / 110));
+    } else if (config.times <= 20) {
+        colunas = Math.min(5, Math.floor(larguraDisponivel / 110));
+    } else if (config.times <= 40) {
+        colunas = Math.min(7, Math.floor(larguraDisponivel / 110));
+    } else {
+        colunas = Math.min(10, Math.floor(larguraDisponivel / 85));
+    }
+    colunas = Math.max(2, colunas);
+    
+    // Número de linhas necessárias
+    const linhas = Math.ceil(config.cartas / colunas);
+    
+    // Tamanho da carta (quadrado) — limitado por largura e altura disponíveis
+    const tamanhoPorLargura = (larguraDisponivel / colunas) * 0.97;
+    const gap = 12; // px
+    const tamanhoPorAltura = ((alturaDisponivel / linhas) - gap * (1 - 1/linhas)) * 0.97;
+    const tamanhoCarta = Math.floor(Math.min(tamanhoPorLargura, tamanhoPorAltura, 110)); // máximo 140px
+    
+    // Aplicar grid ao tabuleiro
+    tabuleiro.style.gridTemplateColumns = `repeat(${colunas}, 1fr)`;
+    tabuleiro.style.gridAutoRows = `${tamanhoCarta}px`;
+    tabuleiro.style.gap = `${Math.round(tamanhoCarta * 0.12)}px`;
+    
+    // Guardar para renderização
+    estado.layout = { colunas, tamanhoCarta, linhas };
+}
+
+function renderizarTabuleiro() {
+    tabuleiro.innerHTML = '';
+    const { tamanhoCarta, colunas } = estado.layout;
+    
+    estado.cartasData.forEach((time, idx) => {
+        const carta = document.createElement('div');
+        carta.className = 'carta';
+        carta.dataset.idx = idx;
+        carta.innerHTML = '❔';
+        carta.style.width = `${tamanhoCarta}px`;
+        carta.style.height = `${tamanhoCarta}px`;
+        carta.style.fontSize = `${Math.floor(tamanhoCarta * 0.36)}px`;
+        carta.addEventListener('click', cliqueCarta);
+        tabuleiro.appendChild(carta);
+    });
+}
+
+function embaralhar(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+function atualizarPontuacao() {
+    pontosVal.textContent = estado.pontuacao;
+}
+
+function iniciarTimer() {
+    if (estado.timer) clearInterval(estado.timer);
+    estado.tempoInicio = Date.now();
+    estado.timer = setInterval(() => {
+        estado.tempoSeg = Math.floor((Date.now() - estado.tempoInicio) / 1000);
+    }, 1000);
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// LÓGICA DO JOGO
+// ═════════════════════════════════════════════════════════════════════
+function cliqueCarta() {
+    if (estado.bloqueado) return;
+    const idx = parseInt(this.dataset.idx);
+    const cartaEl = tabuleiro.children[idx];
+    
+    if (cartaEl.classList.contains('revelada') || cartaEl.classList.contains('acertou')) return;
+    
+    // Virar carta
+    const time = estado.cartasData[idx];
+    cartaEl.classList.add('revelada');
+    cartaEl.innerHTML = `<img src="${time.link}" alt="${time.nome}" loading="lazy">`;
+    
+    estado.selecionadas.push(idx);
+    
+    if (estado.selecionadas.length === 2) {
+        estado.bloqueado = true;
+        setTimeout(verificarPar, 600);
+    }
+}
+
+function verificarPar() {
+    const [i1, i2] = estado.selecionadas;
+    const c1 = tabuleiro.children[i1];
+    const c2 = tabuleiro.children[i2];
+    const t1 = estado.cartasData[i1];
+    const t2 = estado.cartasData[i2];
+    
+    if (t1.id === t2.id) {
+        // ACERTOU
+        setTimeout(() => {
+            c1.classList.add('acertou');
+            c2.classList.add('acertou');
+            estado.paresEncontrados++;
+            estado.pontuacao += 5;
+            atualizarPontuacao();
+            estado.selecionadas = [];
+            estado.bloqueado = false;
+            
+            if (estado.paresEncontrados === estado.totalPares) {
+                setTimeout(() => finalizarJogo(), 300);
+            }
+        }, 120);
+    } else {
+        // ERROU
+        c1.classList.add('erro');
+        c2.classList.add('erro');
+        estado.pontuacao = Math.max(0, estado.pontuacao - 3);
+        atualizarPontuacao();
+        
+        setTimeout(() => {
+            c1.classList.remove('revelada', 'erro');
+            c2.classList.remove('revelada', 'erro');
+            c1.innerHTML = '❔';
+            c2.innerHTML = '❔';
+            estado.selecionadas = [];
+            estado.bloqueado = false;
+        }, 700);
+    }
+}
+
+function finalizarJogo() {
+    if (estado.timer) clearInterval(estado.timer);
+    
+    document.getElementById('fim-pontos-val').textContent = estado.pontuacao;
+    mensagemFim.style.display = "flex";
+    
+    document.getElementById('btn-jogar-novamente').onclick = () => {
+        mensagemFim.style.display = "none";
+        iniciarJogo();
+    };
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// EVENTOS DE CONTROLE + RESPONSIVIDADE
+// ═════════════════════════════════════════════════════════════════════
+// Região
+regiaoBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        regiaoBtns.forEach(b => b.classList.remove('ativo'));
+        btn.classList.add('ativo');
+        estado.regiao = btn.dataset.regiao;
+        iniciarJogo();
+    });
+});
+
+// Nível
+nivelSelect.addEventListener('change', () => {
+    estado.nivel = parseInt(nivelSelect.value);
+    iniciarJogo();
+});
+
+// Reiniciar
+btnReiniciar.addEventListener('click', () => {
+    iniciarJogo();
+});
+
+// Redimensionamento responsivo — recalcula layout ao mudar a janela
+window.addEventListener('resize', () => {
+    // Só recalcula se já temos cartas no tabuleiro
+    if (tabuleiro.children.length > 0) {
+        configurarLayout();
+        renderizarTabuleiro();
+    }
+});
+
+// Iniciar ao carregar
+window.addEventListener('DOMContentLoaded', () => {
+    iniciarJogo();
+});
+    </script>
+</body>
+</html>
